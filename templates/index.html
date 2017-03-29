@@ -1,20 +1,9 @@
-<!DOCTYPE html>
-<html>
+{% extends "main.html" %}
 
-<head>
-    <meta charset="utf-8">
-    <title>Poem Make Pro</title>
-</head>
+{% block header %}
+  <h1>{{ header_text }}</h1>
+{% end %}
 
-<body>
-    <h1>Enter terms below.</h1>
-    <form action="/poem" method="post">
-        <p>Plural noun<br><input type="text" name="noun1"></p>
-        <p>Singular noun<br><input type="text" name="noun2"></p>
-        <p>Verb (past tense)<br><input type="text" name="verb"></p>
-        <p>Noun<br><input type="text" name="noun3"></p>
-        <input type="Submit">
-    </form>
-</body>
-
-</html>
+{% block body %}
+  <p>Hello from the child template.</p>
+{% end %}
