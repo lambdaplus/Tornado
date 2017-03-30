@@ -1,6 +1,7 @@
 # coding=utf-8
 import os.path
-import collections
+import time
+import pymongo
 
 from tornado import httpserver, web, ioloop, locale
 
@@ -13,7 +14,10 @@ class Application(web.Application):
     def __init__(self):
         handlers = [
             (r'/', MainHandler),
-            (r'/recommended/', RecommendedHandler), ]
+            (r'/recommended/', RecommendedHandler),
+            (r'/edit/([0-9Xx\-]+)', BookEditHandler),
+            (r'/add', BookEditHandler),
+            ]
 
         settings = dict(
             templates_path=os.path.join(
@@ -22,6 +26,8 @@ class Application(web.Application):
             ui_modules={'Book': BookModule},
             debug=True
         )
+        conn = pymongo.MongoClient('localhost', 27017)
+        self.db = conn.bookstore
         web.Application.__init__(self, handlers, **settings)
 
 
@@ -38,28 +44,46 @@ class MainHandler(web.RequestHandler):
 class RecommendedHandler(web.RequestHandler):
 
     def get(self):
+        coll = self.application.db.books
+        books = coll.find()
         self.render(
             'templates/recommended.html',
             page_title="Lambda's Books | Recommended Reading",
             header_text="Recommended Reading",
-            books=[
-                {
-                    "title": "Programming Collective Intelligence",
-                    "subtitle": "Building Smart Web 2.0 Applications",
-                    "img": "/static/images/lrg.jpg",
-                    "author": "Toby Segaran",
-                    "date_added": 1310248056,
-                    "date_released": "August 2007",
-                    "isbn": "978-0-596-52932-1",
-                    "description": "<p>This fascinating book demonstrates how you! can build web \
-                    applications to mine the enormous amount of data created by people on the Internet. \
-                    With the sophisticated algorithms in this book, you can write smart \
-                    programs to access interesting datasets from other web sites, collect data \
-                    from users of your own applications, and analyze and understand \
-                    the data once you have found it.</p>"
-                },
-            ]
+            books=books
         )
+
+class BookEditHandler(web.RequestHandler):
+
+    def get(self, isbn=None):
+        book = dict()
+        if isbn:
+            coll = self.application.db.books
+            book = coll.find_one({'isbn': isbn})
+        self.render(
+            'templates/book_edit.html',
+            page_title="Lambda's Books",
+            header_text="Edit book",
+            book=book
+        )
+
+    def post(self, isbn=None):
+        book_fields = ['isbn', 'title', 'subtitle', 'img', 'author',
+        'date_released', 'description']
+        coll = self.application.db.books
+        book = dict()
+
+        if isbn:
+            book = coll.find_one({'isbn': isbn})
+        for key in book_fields:
+            book[key] = self.get_argument(key, None)
+
+        if isbn:
+            coll.save(book)
+        else:
+            book['date_added'] = int(time.time())
+            coll.insert_one(book)
+        self.redirect('/recommended/')
 
 
 class BookModule(web.UIModule):
